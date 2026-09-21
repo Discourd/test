@@ -3,71 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instagram フォロワー増加シミュレーター</title>
+    <title>Instagram シミュレーター</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body { background-color: #000; color: #fff; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .card { background: #121212; border: 1px solid #262626; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { font-size: 20px; text-align: center; margin-bottom: 20px; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
-        input[type="text"] { flex: 1; background: #262626; border: 1px solid #363636; border-radius: 8px; padding: 12px; color: #fff; font-size: 14px; outline: none; }
-        input[type="text"]:focus { border-color: #0095f6; }
-        button.btn-search { background: #0095f6; color: #fff; border: none; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer; }
-        button.btn-search:hover { background: #1877f2; }
-        .error-msg { color: #ef4444; font-size: 13px; margin-bottom: 15px; text-align: center; display: none; }
+        .card { background: #121212; border: 1px solid #262626; border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { font-size: 18px; text-align: center; margin-bottom: 15px; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; }
         
-        /* プロフィール領域 */
-        .profile-section { display: none; margin-top: 10px; }
-        .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
-        .profile-pic { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #e1306c; }
-        .profile-info { flex: 1; }
-        .username { font-weight: bold; font-size: 18px; }
-        .full-name { color: #a8a8a8; font-size: 13px; margin-top: 2px; }
-        .tag { display: inline-block; background: #262626; color: #10b981; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; margin-top: 6px; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
+        input[type="text"], input[type="number"] { background: #262626; border: 1px solid #363636; border-radius: 8px; padding: 10px; color: #fff; font-size: 14px; outline: none; width: 100%; }
+        input:focus { border-color: #0095f6; }
+        
+        button.btn-search { background: #0095f6; color: #fff; border: none; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        .error-msg { color: #ef4444; font-size: 13px; margin-bottom: 15px; text-align: center; display: none; }
 
-        /* カウンター */
-        .counter-box { background: #000; border: 1px solid #262626; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
-        .counter-label { font-size: 12px; color: #a8a8a8; text-transform: uppercase; letter-spacing: 1px; }
-        .counter-num { font-size: 38px; font-weight: 800; color: #fff; margin: 5px 0; font-variant-numeric: tabular-nums; }
-        .counter-status { font-size: 12px; color: #10b981; font-weight: bold; }
+        /* 数値設定 */
+        .setup-section { display: none; background: #1c1c1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .setup-title { font-size: 12px; color: #a8a8a8; margin-bottom: 10px; text-align: center; font-weight: bold; }
+        .setup-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .setup-item label { font-size: 10px; color: #8e8e93; display: block; margin-bottom: 4px; text-align: center; }
+        .setup-item input { text-align: center; padding: 6px; font-size: 13px; }
+        .btn-apply { width: 100%; background: #34c759; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* プロフィール画面 */
+        .profile-section { display: none; }
+        .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        
+        /* イニシャルアイコン */
+        .avatar-circle { width: 65px; height: 65px; border-radius: 50%; background: linear-gradient(135deg, #f09433, #dc2743, #bc1888); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; text-transform: uppercase; border: 2px solid #000; }
+        
+        .profile-info { flex: 1; }
+        .username { font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 4px; }
+        .full-name { color: #a8a8a8; font-size: 12px; margin-top: 2px; }
+
+        /* カウンターバー */
+        .stats-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border: 1px solid #262626; border-radius: 12px; padding: 12px 5px; text-align: center; margin-bottom: 15px; }
+        .stat-val { font-weight: 800; font-size: 16px; color: #fff; }
+        .stat-lbl { font-size: 10px; color: #a8a8a8; margin-top: 2px; }
 
         /* 操作ボタン */
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-        .btn { border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .btn { border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
         .btn-start { background: #10b981; color: #fff; }
         .btn-stop { background: #ef4444; color: #fff; }
         .btn-boost { grid-column: span 2; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: #fff; }
 
-        /* ログ */
-        .logs { max-height: 120px; overflow-y: auto; font-size: 12px; color: #a8a8a8; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #262626; padding-top: 12px; margin-top: 15px; }
+        .logs { max-height: 100px; overflow-y: auto; font-size: 11px; color: #a8a8a8; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #262626; padding-top: 10px; margin-top: 10px; }
         .log-item { display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>フォロワー増加シミュレーター</h1>
+        <h1>Instagram シミュレーター</h1>
         
         <div class="input-group">
-            <input type="text" id="usernameInput" placeholder="Instagram IDを入力 (例: zuck)">
-            <button class="btn-search" onclick="searchUser()">検索</button>
+            <input type="text" id="usernameInput" placeholder="Instagram IDを入力">
+            <button class="btn-search" onclick="searchUser()">存在チェック</button>
         </div>
 
         <div id="errorMsg" class="error-msg"></div>
 
+        <!-- 設定フォーム -->
+        <div id="setupSection" class="setup-section">
+            <div class="setup-title">✅ ユーザー確認完了！数値を設定してください</div>
+            <div class="setup-grid">
+                <div class="setup-item">
+                    <label>投稿数</label>
+                    <input type="number" id="initPosts" value="15">
+                </div>
+                <div class="setup-item">
+                    <label>フォロワー数</label>
+                    <input type="number" id="initFollowers" value="1200">
+                </div>
+                <div class="setup-item">
+                    <label>フォロー中</label>
+                    <input type="number" id="initFollowing" value="350">
+                </div>
+            </div>
+            <button class="btn-apply" onclick="applySettings()">シミュレーションを開始</button>
+        </div>
+
+        <!-- メイン画面 -->
         <div id="profileSection" class="profile-section">
             <div class="profile-header">
-                <img id="profilePic" class="profile-pic" src="" alt="アイコン">
+                <div id="avatarCircle" class="avatar-circle">?</div>
                 <div class="profile-info">
                     <div id="displayUsername" class="username">@</div>
                     <div id="displayFullName" class="full-name"></div>
-                    <span class="tag">SIMULATION ACTIVE</span>
                 </div>
             </div>
 
-            <div class="counter-box">
-                <div class="counter-label">フォロワー数</div>
-                <div id="counterNum" class="counter-num">1,000</div>
-                <div id="counterStatus" class="counter-status">待機中</div>
+            <div class="stats-bar">
+                <div>
+                    <div id="valPosts" class="stat-val">0</div>
+                    <div class="stat-lbl">投稿</div>
+                </div>
+                <div>
+                    <div id="valFollowers" class="stat-val" style="color:#10b981;">0</div>
+                    <div class="stat-lbl">フォロワー</div>
+                </div>
+                <div>
+                    <div id="valFollowing" class="stat-val">0</div>
+                    <div class="stat-lbl">フォロー中</div>
+                </div>
             </div>
 
             <div class="controls">
@@ -83,15 +121,17 @@
     </div>
 
     <script>
-        let currentFollowers = 1000;
+        let followersCount = 0;
         let timer = null;
 
         async function searchUser() {
             const input = document.getElementById('usernameInput').value;
             const errorMsg = document.getElementById('errorMsg');
+            const setupSection = document.getElementById('setupSection');
             const profileSection = document.getElementById('profileSection');
             
             errorMsg.style.display = 'none';
+            profileSection.style.display = 'none';
             stopSim();
 
             if (!input) {
@@ -108,22 +148,34 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    document.getElementById('profilePic').src = data.profile_pic;
+                    // イニシャルアイコンの設定
+                    const firstChar = data.username.charAt(0);
+                    document.getElementById('avatarCircle').innerText = firstChar;
+                    
                     document.getElementById('displayUsername').innerText = '@' + data.username;
                     document.getElementById('displayFullName').innerText = data.full_name;
                     
-                    currentFollowers = data.initial_followers;
-                    updateCounter();
-                    
-                    profileSection.style.display = 'block';
-                    addLog('システム', `@${data.username} の検出に成功しました`);
+                    setupSection.style.display = 'block';
                 } else {
-                    profileSection.style.display = 'none';
                     showError(data.error);
                 }
             } catch (err) {
                 showError('通信エラーが発生しました。');
             }
+        }
+
+        function applySettings() {
+            const posts = parseInt(document.getElementById('initPosts').value) || 0;
+            followersCount = parseInt(document.getElementById('initFollowers').value) || 0;
+            const following = parseInt(document.getElementById('initFollowing').value) || 0;
+
+            document.getElementById('valPosts').innerText = posts.toLocaleString();
+            document.getElementById('valFollowers').innerText = followersCount.toLocaleString();
+            document.getElementById('valFollowing').innerText = following.toLocaleString();
+
+            document.getElementById('setupSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'block';
+            addLog('システム', 'シミュレーションを開始しました');
         }
 
         function showError(msg) {
@@ -133,15 +185,14 @@
         }
 
         function updateCounter() {
-            document.getElementById('counterNum').innerText = currentFollowers.toLocaleString();
+            document.getElementById('valFollowers').innerText = followersCount.toLocaleString();
         }
 
         function startSim() {
             if (timer) return;
-            document.getElementById('counterStatus').innerText = '▲ フォロワー増加中...';
             timer = setInterval(() => {
                 const add = Math.floor(Math.random() * 5) + 1;
-                currentFollowers += add;
+                followersCount += add;
                 updateCounter();
                 addLog('新規フォロー', `+${add} 人`);
             }, 500);
@@ -151,12 +202,11 @@
             if (timer) {
                 clearInterval(timer);
                 timer = null;
-                document.getElementById('counterStatus').innerText = '⏸ 一時停止中';
             }
         }
 
         function addBoost() {
-            currentFollowers += 1000;
+            followersCount += 1000;
             updateCounter();
             addLog('⚡ 爆撃ブースト', '+1,000 人');
         }
