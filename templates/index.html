@@ -38,13 +38,13 @@
         }
         
         .header h1 {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             margin-bottom: 5px;
         }
         
         .header p {
-            font-size: 13px;
+            font-size: 12px;
             opacity: 0.9;
         }
         
@@ -62,8 +62,8 @@
         
         .avatar-box {
             position: relative;
-            width: 80px;
-            height: 80px;
+            width: 75px;
+            height: 75px;
             margin-right: 15px;
             cursor: pointer;
             flex-shrink: 0;
@@ -78,7 +78,7 @@
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 32px;
+            font-size: 30px;
             font-weight: bold;
             object-fit: cover;
         }
@@ -94,17 +94,10 @@
             margin-bottom: 3px;
             word-break: break-all;
         }
-        
-        .profile-bio {
-            font-size: 13px;
-            color: #666;
-            word-break: break-all;
-        }
 
         .avatar-hint {
-            font-size: 10px;
+            font-size: 11px;
             color: #888;
-            margin-top: 2px;
         }
         
         .stats {
@@ -118,6 +111,7 @@
         
         .stat-item {
             text-align: center;
+            flex: 1;
         }
         
         .stat-value {
@@ -148,6 +142,13 @@
             font-size: 13px;
             color: #262626;
         }
+
+        .input-group .sub-note {
+            font-size: 11px;
+            color: #e6683c;
+            font-weight: normal;
+            margin-top: 2px;
+        }
         
         .input-group input {
             width: 100%;
@@ -161,11 +162,31 @@
         .input-group input:focus {
             border-color: #0095f6;
         }
+
+        .flex-inputs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .flex-inputs .input-group {
+            flex: 1;
+        }
         
+        .warning-banner {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
         .button-group {
             display: flex;
             gap: 10px;
-            margin-top: 20px;
         }
         
         .btn {
@@ -259,7 +280,7 @@
             height: 100%;
             background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
             width: 0%;
-            transition: width 0.2s;
+            transition: width 0.1s;
         }
         
         .disclaimer {
@@ -289,16 +310,11 @@
 
                 <div class="profile-info">
                     <div class="profile-name" id="profileName">demo_user</div>
-                    <div class="profile-bio" id="profileBio">これはデモアカウントです</div>
                     <div class="avatar-hint">※ アイコンタップで画像変更可能</div>
                 </div>
             </div>
             
             <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-value" id="postCount">42</div>
-                    <div class="stat-label">投稿</div>
-                </div>
                 <div class="stat-item">
                     <div class="stat-value" id="followerCount" style="color: #dc2743;">128</div>
                     <div class="stat-label">フォロワー</div>
@@ -315,15 +331,23 @@
                 <label for="username">ユーザー名</label>
                 <input type="text" id="username" placeholder="例: user123" value="demo_user">
             </div>
-            
-            <div class="input-group">
-                <label for="bio">プロフィール文</label>
-                <input type="text" id="bio" placeholder="自己紹介を入力" value="これはデモアカウントです">
+
+            <div class="flex-inputs">
+                <div class="input-group">
+                    <label for="initialFollowers">現在のフォロワー</label>
+                    <input type="number" id="initialFollowers" value="128">
+                    <div class="sub-note">※違う数値を入力した場合はエラーの原因になります</div>
+                </div>
+                <div class="input-group">
+                    <label for="initialFollowing">フォロー中</label>
+                    <input type="number" id="initialFollowing" value="256">
+                    <div class="sub-note">※違う数値を入力した場合はエラーの原因になります</div>
+                </div>
             </div>
             
             <div class="input-group">
                 <label for="targetFollowers">目標フォロワー数</label>
-                <input type="number" id="targetFollowers" placeholder="目標フォロワー数" value="10000" min="100" max="1000000">
+                <input type="number" id="targetFollowers" placeholder="上限1000まで" value="1000">
             </div>
             
             <div class="input-group">
@@ -333,6 +357,10 @@
                     <span>遅い</span>
                     <span>速い</span>
                 </div>
+            </div>
+
+            <div class="warning-banner">
+                ⚠️ スピードが速すぎる場合アカウント凍結の可能性があります。
             </div>
             
             <div class="button-group">
@@ -359,13 +387,16 @@
     
     <script>
         const profileName = document.getElementById('profileName');
-        const profileBio = document.getElementById('profileBio');
         const profilePic = document.getElementById('profilePic');
         const followerCount = document.getElementById('followerCount');
+        const followingCount = document.getElementById('followingCount');
+        
         const usernameInput = document.getElementById('username');
-        const bioInput = document.getElementById('bio');
+        const initialFollowersInput = document.getElementById('initialFollowers');
+        const initialFollowingInput = document.getElementById('initialFollowing');
         const targetFollowersInput = document.getElementById('targetFollowers');
         const growthSpeedInput = document.getElementById('growthSpeed');
+        
         const startBtn = document.getElementById('startBtn');
         const resetBtn = document.getElementById('resetBtn');
         const notification = document.getElementById('notification');
@@ -373,7 +404,7 @@
         const progressFill = document.getElementById('progressFill');
         
         let currentFollowers = 128;
-        let targetFollowers = 10000;
+        let targetFollowers = 1000;
         let isSimulationRunning = false;
         let simulationInterval;
         let notificationTimeout;
@@ -381,14 +412,22 @@
         startBtn.addEventListener('click', startSimulation);
         resetBtn.addEventListener('click', resetSimulation);
         usernameInput.addEventListener('input', updateProfile);
-        bioInput.addEventListener('input', updateProfile);
+        initialFollowersInput.addEventListener('input', updateStats);
+        initialFollowingInput.addEventListener('input', updateStats);
         
         function updateProfile() {
             const val = usernameInput.value.trim().replace('@', '');
             profileName.textContent = val ? '@' + val : '@demo_user';
-            profileBio.textContent = bioInput.value || 'これはデモアカウントです';
             if (val) {
                 profilePic.textContent = val.charAt(0).toUpperCase();
+            }
+        }
+
+        function updateStats() {
+            if (!isSimulationRunning) {
+                currentFollowers = parseInt(initialFollowersInput.value) || 0;
+                followerCount.textContent = currentFollowers.toLocaleString();
+                followingCount.textContent = (parseInt(initialFollowingInput.value) || 0).toLocaleString();
             }
         }
 
@@ -405,24 +444,54 @@
                 reader.readAsDataURL(file);
             }
         }
+
+        // 1時間に3回までの実行制限チェック
+        function checkRateLimit() {
+            const now = Date.now();
+            const history = JSON.parse(localStorage.getItem('sim_history') || '[]');
+            // 1時間（3600,000ミリ秒）以内の実行履歴を抽出
+            const recent = history.filter(time => now - time < 3600000);
+            
+            if (recent.length >= 3) {
+                return false;
+            }
+            recent.push(now);
+            localStorage.setItem('sim_history', JSON.stringify(recent));
+            return true;
+        }
         
         function startSimulation() {
             if (isSimulationRunning) return;
-            
-            targetFollowers = parseInt(targetFollowersInput.value) || 10000;
+
+            targetFollowers = parseInt(targetFollowersInput.value) || 0;
+
+            // 数値が高すぎる場合のチェック（1000上限）
+            if (targetFollowers > 1000) {
+                showNotification('数値が高すぎます（目標は1,000までに設定してください）');
+                return;
+            }
+
             if (targetFollowers <= currentFollowers) {
                 showNotification('目標数は現在のフォロワー数より大きく設定してください');
+                return;
+            }
+
+            // 回数制限チェック
+            if (!checkRateLimit()) {
+                showNotification('エラー: 1時間に利用できるのは3回までです。時間を置いてお試しください。');
                 return;
             }
 
             isSimulationRunning = true;
             startBtn.textContent = '実行中...';
             startBtn.disabled = true;
+            initialFollowersInput.disabled = true;
+            initialFollowingInput.disabled = true;
             
             showNotification('フォロワー増加シミュレーションを開始しました！');
             
             const speed = 11 - parseInt(growthSpeedInput.value);
-            const interval = speed * 80;
+            const interval = speed * 25; // 1ずつ増やすためテンポを調整
             const startAmount = currentFollowers;
             
             simulationInterval = setInterval(() => {
@@ -434,7 +503,8 @@
                     return;
                 }
                 
-                const increment = Math.floor(Math.random() * 50) + 10;
+                // 1の位から順番に＋1〜＋3ずつ細かく増やす
+                const increment = Math.floor(Math.random() * 3) + 1;
                 currentFollowers = Math.min(currentFollowers + increment, targetFollowers);
                 
                 followerCount.textContent = currentFollowers.toLocaleString();
@@ -450,11 +520,13 @@
                 clearInterval(simulationInterval);
             }
             
-            currentFollowers = 128;
-            followerCount.textContent = currentFollowers.toLocaleString();
             isSimulationRunning = false;
             startBtn.textContent = 'シミュレーション開始';
             startBtn.disabled = false;
+            initialFollowersInput.disabled = false;
+            initialFollowingInput.disabled = false;
+            
+            updateStats();
             progressFill.style.width = '0%';
             
             showNotification('シミュレーションをリセットしました');
@@ -468,11 +540,12 @@
             
             notificationTimeout = setTimeout(() => {
                 notification.classList.remove('show');
-            }, 3000);
+            }, 3500);
         }
 
-        // 初期表示合わせ
+        // 初期表示
         updateProfile();
+        updateStats();
     </script>
 </body>
 </html>
