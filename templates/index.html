@@ -17,9 +17,9 @@
         button.btn-search { background: #0095f6; color: #fff; border: none; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer; white-space: nowrap; }
         .error-msg { color: #ef4444; font-size: 13px; margin-bottom: 15px; text-align: center; display: none; }
 
-        /* 数値設定 */
+        /* 設定フォーム */
         .setup-section { display: none; background: #1c1c1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-        .setup-title { font-size: 12px; color: #a8a8a8; margin-bottom: 10px; text-align: center; font-weight: bold; }
+        .setup-title { font-size: 12px; color: #34c759; margin-bottom: 10px; text-align: center; font-weight: bold; }
         .setup-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
         .setup-item label { font-size: 10px; color: #8e8e93; display: block; margin-bottom: 4px; text-align: center; }
         .setup-item input { text-align: center; padding: 6px; font-size: 13px; }
@@ -28,20 +28,15 @@
         /* プロフィール画面 */
         .profile-section { display: none; }
         .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
-        
-        /* イニシャルアイコン */
         .avatar-circle { width: 65px; height: 65px; border-radius: 50%; background: linear-gradient(135deg, #f09433, #dc2743, #bc1888); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; text-transform: uppercase; border: 2px solid #000; }
-        
         .profile-info { flex: 1; }
-        .username { font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 4px; }
+        .username { font-weight: bold; font-size: 16px; }
         .full-name { color: #a8a8a8; font-size: 12px; margin-top: 2px; }
 
-        /* カウンターバー */
         .stats-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border: 1px solid #262626; border-radius: 12px; padding: 12px 5px; text-align: center; margin-bottom: 15px; }
         .stat-val { font-weight: 800; font-size: 16px; color: #fff; }
         .stat-lbl { font-size: 10px; color: #a8a8a8; margin-top: 2px; }
 
-        /* 操作ボタン */
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
         .btn { border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
         .btn-start { background: #10b981; color: #fff; }
@@ -58,14 +53,13 @@
         
         <div class="input-group">
             <input type="text" id="usernameInput" placeholder="Instagram IDを入力">
-            <button class="btn-search" onclick="searchUser()">存在チェック</button>
+            <button class="btn-search" id="searchBtn" onclick="searchUser()">存在チェック</button>
         </div>
 
         <div id="errorMsg" class="error-msg"></div>
 
-        <!-- 設定フォーム -->
         <div id="setupSection" class="setup-section">
-            <div class="setup-title">✅ ユーザー確認完了！数値を設定してください</div>
+            <div class="setup-title">✅ アカウント確認完了！初期値を設定</div>
             <div class="setup-grid">
                 <div class="setup-item">
                     <label>投稿数</label>
@@ -83,7 +77,6 @@
             <button class="btn-apply" onclick="applySettings()">シミュレーションを開始</button>
         </div>
 
-        <!-- メイン画面 -->
         <div id="profileSection" class="profile-section">
             <div class="profile-header">
                 <div id="avatarCircle" class="avatar-circle">?</div>
@@ -123,14 +116,18 @@
     <script>
         let followersCount = 0;
         let timer = null;
+        let currentUsername = "";
+        let currentFullName = "";
 
         async function searchUser() {
-            const input = document.getElementById('usernameInput').value;
+            const input = document.getElementById('usernameInput').value.trim().replace('@', '');
             const errorMsg = document.getElementById('errorMsg');
             const setupSection = document.getElementById('setupSection');
             const profileSection = document.getElementById('profileSection');
-            
+            const btn = document.getElementById('searchBtn');
+
             errorMsg.style.display = 'none';
+            setupSection.style.display = 'none';
             profileSection.style.display = 'none';
             stopSim();
 
@@ -139,28 +136,29 @@
                 return;
             }
 
-            try {
-                const res = await fetch('/api/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: input })
-                });
-                const data = await res.json();
+            btn.innerText = '確認中...';
 
-                if (data.success) {
-                    // イニシャルアイコンの設定
-                    const firstChar = data.username.charAt(0);
-                    document.getElementById('avatarCircle').innerText = firstChar;
-                    
-                    document.getElementById('displayUsername').innerText = '@' + data.username;
-                    document.getElementById('displayFullName').innerText = data.full_name;
-                    
+            try {
+                // ブラウザからInstagramの公開ページ（oembed API）へ直接確認
+                const response = await fetch(`https://api.instagram.com/oembed/?url=https://www.instagram.com/${input}/`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUsername = input;
+                    currentFullName = data.author_name || input;
+
+                    document.getElementById('avatarCircle').innerText = input.charAt(0);
+                    document.getElementById('displayUsername').innerText = '@' + currentUsername;
+                    document.getElementById('displayFullName').innerText = currentFullName;
+
                     setupSection.style.display = 'block';
                 } else {
-                    showError(data.error);
+                    showError(`@${input} は存在しないか、非公開アカウントです。`);
                 }
             } catch (err) {
-                showError('通信エラーが発生しました。');
+                showError(`@${input} の確認に失敗しました。実在する公開IDか確認してください。`);
+            } finally {
+                btn.innerText = '存在チェック';
             }
         }
 
