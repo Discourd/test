@@ -18,26 +18,34 @@ def search_user():
 
     url = f"https://www.instagram.com/{username}/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
     try:
         res = requests.get(url, headers=headers, timeout=5)
         
-        if res.status_code == 200:
-            # メタタグからアイコン画像と名前を取得
+        # Instagramのメタタグから情報を抽出
+        og_image = re.search(r'property="og:image"\s+content="([^"]+)"', res.text)
+        og_title = re.search(r'property="og:title"\s+content="([^"]+)"', res.text)
+
+        # 実在する公開アカウントの場合、og:title に「名前 (@username) • Instagram photos and videos」のような形式が入る
+        if og_title and username.lower() in og_title.group(1).lower():
             profile_pic = ""
             full_name = username
 
-            og_image = re.search(r'property="og:image"\s+content="([^"]+)"', res.text)
             if og_image:
                 profile_pic = og_image.group(1).replace("&amp;", "&")
 
-            og_title = re.search(r'property="og:title"\s+content="([^"]+)"', res.text)
-            if og_title:
-                full_name = og_title.group(1).split('•')[0].strip()
+            # titleから表示名を取得
+            title_text = og_title.group(1)
+            if '•' in title_text:
+                full_name = title_text.split('•')[0].strip()
+            elif '(' in title_text:
+                full_name = title_text.split('(')[0].strip()
 
-            if not profile_pic:
+            # 画像が取れなかった場合のみフォールバック
+            if not profile_pic or "static/images" in profile_pic:
                 profile_pic = f"https://ui-avatars.com/api/?name={username}&background=random"
 
             return jsonify({
@@ -47,10 +55,9 @@ def search_user():
                 'profile_pic': profile_pic,
                 'initial_followers': 1000
             })
-        elif res.status_code == 404:
-            return jsonify({'success': False, 'error': f'@{username} は存在しません。'})
         else:
-            return jsonify({'success': False, 'error': f'情報取得に失敗しました (Status: {res.status_code})'})
+            # メタタグにユーザー名が含まれていない＝存在しないか非公開・ブロック
+            return jsonify({'success': False, 'error': f'@{username} は存在しないか、非公開アカウントです。'})
 
     except Exception as e:
         return jsonify({'success': False, 'error': f'通信エラー: {str(e)}'})
