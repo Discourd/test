@@ -28,7 +28,10 @@
         /* プロフィール画面 */
         .profile-section { display: none; }
         .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
-        .avatar-circle { width: 65px; height: 65px; border-radius: 50%; background: linear-gradient(135deg, #f09433, #dc2743, #bc1888); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; text-transform: uppercase; border: 2px solid #000; }
+        
+        .avatar-box { position: relative; width: 65px; height: 65px; cursor: pointer; }
+        .avatar-circle { width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, #f09433, #dc2743, #bc1888); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #fff; text-transform: uppercase; border: 2px solid #000; object-fit: cover; }
+        
         .profile-info { flex: 1; }
         .username { font-weight: bold; font-size: 16px; }
         .full-name { color: #a8a8a8; font-size: 12px; margin-top: 2px; }
@@ -53,13 +56,13 @@
         
         <div class="input-group">
             <input type="text" id="usernameInput" placeholder="Instagram IDを入力">
-            <button class="btn-search" id="searchBtn" onclick="searchUser()">存在チェック</button>
+            <button class="btn-search" onclick="loadProfile()">決定</button>
         </div>
 
         <div id="errorMsg" class="error-msg"></div>
 
         <div id="setupSection" class="setup-section">
-            <div class="setup-title">✅ アカウント確認完了！初期値を設定</div>
+            <div class="setup-title">⚙️ 初期数値を設定してください</div>
             <div class="setup-grid">
                 <div class="setup-item">
                     <label>投稿数</label>
@@ -79,10 +82,15 @@
 
         <div id="profileSection" class="profile-section">
             <div class="profile-header">
-                <div id="avatarCircle" class="avatar-circle">?</div>
+                <div class="avatar-box" onclick="document.getElementById('fileInput').click()">
+                    <div id="avatarCircle" class="avatar-circle">?</div>
+                    <img id="avatarImage" class="avatar-circle" style="display:none;" alt="アイコン">
+                </div>
+                <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="changeAvatar(event)">
+
                 <div class="profile-info">
                     <div id="displayUsername" class="username">@</div>
-                    <div id="displayFullName" class="full-name"></div>
+                    <div id="displayFullName" class="full-name">タップでアイコン画像を変更可能</div>
                 </div>
             </div>
 
@@ -116,18 +124,14 @@
     <script>
         let followersCount = 0;
         let timer = null;
-        let currentUsername = "";
-        let currentFullName = "";
 
-        async function searchUser() {
+        function loadProfile() {
             const input = document.getElementById('usernameInput').value.trim().replace('@', '');
             const errorMsg = document.getElementById('errorMsg');
             const setupSection = document.getElementById('setupSection');
             const profileSection = document.getElementById('profileSection');
-            const btn = document.getElementById('searchBtn');
 
             errorMsg.style.display = 'none';
-            setupSection.style.display = 'none';
             profileSection.style.display = 'none';
             stopSim();
 
@@ -136,29 +140,23 @@
                 return;
             }
 
-            btn.innerText = '確認中...';
+            document.getElementById('avatarCircle').innerText = input.charAt(0);
+            document.getElementById('displayUsername').innerText = '@' + input;
+            
+            setupSection.style.display = 'block';
+        }
 
-            try {
-                // ブラウザからInstagramの公開ページ（oembed API）へ直接確認
-                const response = await fetch(`https://api.instagram.com/oembed/?url=https://www.instagram.com/${input}/`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    currentUsername = input;
-                    currentFullName = data.author_name || input;
-
-                    document.getElementById('avatarCircle').innerText = input.charAt(0);
-                    document.getElementById('displayUsername').innerText = '@' + currentUsername;
-                    document.getElementById('displayFullName').innerText = currentFullName;
-
-                    setupSection.style.display = 'block';
-                } else {
-                    showError(`@${input} は存在しないか、非公開アカウントです。`);
+        function changeAvatar(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const img = document.getElementById('avatarImage');
+                    img.src = evt.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('avatarCircle').style.display = 'none';
                 }
-            } catch (err) {
-                showError(`@${input} の確認に失敗しました。実在する公開IDか確認してください。`);
-            } finally {
-                btn.innerText = '存在チェック';
+                reader.readAsDataURL(file);
             }
         }
 
