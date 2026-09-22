@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, make_response, redirect, session
+from flask import Flask, render_template, request, jsonify, make_response, redirect
 import sqlite3
 import uuid
 import urllib.request
@@ -6,10 +6,9 @@ import json
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_admin_key_here'
 
-# ★ 管理者ログイン用のパスワード
-ADMIN_PASSWORD = 'admin'
+# ★ あなた専用の管理者UID
+ADMIN_UID = 'UID_546d63df'
 
 def init_db():
     conn = sqlite3.connect('logs.db')
@@ -35,7 +34,6 @@ def get_location_from_ip(ip):
         return "ローカル環境"
     
     try:
-        # 判定精度の高いAPIに変更
         url = f"http://ip-api.com/json/{ip}?lang=ja"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=3) as response:
@@ -43,7 +41,6 @@ def get_location_from_ip(ip):
             if data.get('status') == 'success':
                 region = data.get('regionName', '')
                 city = data.get('city', '')
-                org = data.get('isp', '') # プロバイダ名も取得
                 return f"{region} {city}".strip()
     except Exception as e:
         print(f"GeoIP Error: {e}")
@@ -95,49 +92,14 @@ def log_simulation():
 
     return jsonify({'status': 'success'})
 
-@app.route('/admin/login', methods=['GET', 'POST'])
-def admin_login():
-    error = None
-    if request.method == 'POST':
-        password = request.form.get('password')
-        if password == ADMIN_PASSWORD:
-            session['is_admin'] = True
-            return redirect('/admin/logs')
-        else:
-            error = 'パスワードが違います'
-
-    return f'''
-    <!DOCTYPE html>
-    <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>管理者認証</title>
-        <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f4f4f9; margin:0; padding:20px; box-sizing:border-box; }}
-            .card {{ background:white; padding:30px; border-radius:16px; box-shadow:0 10px 25px rgba(0,0,0,0.1); text-align:center; width:100%; max-width:360px; }}
-            input {{ padding:12px; margin-bottom:12px; width:100%; box-sizing:border-box; border:1px solid #ccc; border-radius:8px; font-size:16px; }}
-            button {{ padding:12px; width:100%; background:#dc2743; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; }}
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <h3 style="margin-top:0;">🔐 管理者ログイン</h3>
-            {'<p style="color:red; font-size:14px;">' + error + '</p>' if error else ''}
-            <form method="POST">
-                <input type="password" name="password" placeholder="パスワードを入力" required>
-                <button type="submit">ログイン</button>
-            </form>
-        </div>
-    </body>
-    </html>
-    '''
-
-# ★ スマホで見やすい最適化版ログ画面
+# ★ 特定UID（あなた）のみ閲覧可能なログ画面
 @app.route('/admin/logs')
 def view_logs():
-    if not session.get('is_admin'):
-        return redirect('/admin/login')
+    current_uid = request.cookies.get('user_uid')
+    
+    # あなたのUIDでない場合はアクセス拒否
+    if current_uid != ADMIN_UID:
+        return '<h3 style="color:red; text-align:center; margin-top:50px;">🚫 403 Forbidden: 管理者権限がありません</h3>', 403
 
     conn = sqlite3.connect('logs.db')
     cursor = conn.cursor()
