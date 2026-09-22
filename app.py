@@ -1,13 +1,15 @@
 from flask import Flask, render_template, request, jsonify, make_response, redirect, session
 import sqlite3
 import uuid
+import urllib.request
+import json
 from datetime import datetime
 
 app = Flask(__name__)
-# セッション暗号化用の秘密鍵（適当な英数字でOK）
+# セッション暗号化用の秘密鍵
 app.secret_key = 'your_secret_admin_key_here'
 
-# ★ あなただけの管理者パスワードを設定（ここを好きな文字に変えてください）
+# ★ 管理者ログイン用のパスワード（好きな文字に変更してください）
 ADMIN_PASSWORD = 'admin'
 
 # データベースの初期化
@@ -20,7 +22,9 @@ def init_db():
             uid TEXT NOT NULL,
             username TEXT,
             target_followers INTEGER,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            ip_address TEXT,
+            location TEXT
         )
     ''')
     conn.commit()
@@ -28,9 +32,30 @@ def init_db():
 
 init_db()
 
+# IPアドレスから都道府県・市区町村を取得する関数
+def get_location_from_ip(ip):
+    # ローカル環境（127.0.0.1）などの例外処理
+    if not ip or ip in ['127.0.0.1', 'localhost', '::1']:
+        return "ローカル環境"
+    
+    try:
+        # ip-api.com を利用して日本語で地域情報を取得
+        url = f"http://ip-api.com/json/{ip}?lang=ja&fields=status,regionName,city"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode())
+            if data.get('status') == 'success':
+                region = data.get('regionName', '') # 県名（例: 東京都）
+                city = data.get('city', '')         # 市区町村（例: 渋谷区）
+                return f"{region} {city}".strip()
+    except Exception as e:
+        print(f"GeoIP Error: {e}")
+    
+    return "解析不能"
+
 @app.route('/')
 def index():
-    # ユーザーがアクセスしたらUID（サイト内ID）を自動発行してCookieに保存
+    # ユーザーアクセスのたびにUIDを発行・保持
     user_id = request.cookies.get('user_uid')
     if not user_id:
         user_id = f"UID_{uuid.uuid4().hex[:8]}"
@@ -47,26 +72,45 @@ def log_simulation():
     username = data.get('username', 'demo_user')
     target = data.get('target', 0)
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # ユーザーのIPアドレスを取得（Render環境対応）
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if ip_address and ',' in ip_address:
+        ip_address = ip_address.split(',')[0].strip()
+
+    # IPから県・市を取得
+    location = get_location_from_ip(ip_address)
 
     conn = sqlite3.connect('logs.db')
     cursor = conn.cursor()
+    
+    # 古いデータベースへのカラム自動追加対応
+    try:
+        cursor.execute('ALTER TABLE sim_logs ADD COLUMN ip_address TEXT')
+    except:
+        pass
+    try:
+        cursor.execute('ALTER TABLE sim_logs ADD COLUMN location TEXT')
+    except:
+        pass
+
     cursor.execute(
-        'INSERT INTO sim_logs (uid, username, target_followers, created_at) VALUES (?, ?, ?, ?)',
-        (uid, username, target, now_str)
+        'INSERT INTO sim_logs (uid, username, target_followers, created_at, ip_address, location) VALUES (?, ?, ?, ?, ?, ?)',
+        (uid, username, target, now_str, ip_address, location)
     )
     conn.commit()
     conn.close()
 
     return jsonify({'status': 'success'})
 
-# ★ 管理者ログイン画面
+# 管理者ログイン画面
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     error = None
     if request.method == 'POST':
         password = request.form.get('password')
         if password == ADMIN_PASSWORD:
-            session['is_admin'] = True  # あなたを管理者として認識！
+            session['is_admin'] = True
             return redirect('/admin/logs')
         else:
             error = 'パスワードが違います'
@@ -86,16 +130,15 @@ def admin_login():
     </html>
     '''
 
-# ★ ログ閲覧ページ（あなただけが見れるページ）
+# 管理者ログ閲覧画面（IP・アクセス地域付き）
 @app.route('/admin/logs')
 def view_logs():
-    # 管理者ログインしていない人はログイン画面に追い返す（判定処理）
     if not session.get('is_admin'):
         return redirect('/admin/login')
 
     conn = sqlite3.connect('logs.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT uid, username, target_followers, created_at FROM sim_logs ORDER BY id DESC LIMIT 100')
+    cursor.execute('SELECT uid, username, target_followers, created_at, ip_address, location FROM sim_logs ORDER BY id DESC LIMIT 100')
     logs = cursor.fetchall()
     conn.close()
 
@@ -107,11 +150,13 @@ def view_logs():
         <style>
             body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
             h2 { color: #333; }
-            table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-            th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+            table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size:13px; }
+            th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
             th { background: #dc2743; color: white; }
             tr:nth-child(even) { background: #f9f9f9; }
             .badge { background: #e0e0e0; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+            .ip-box { font-family: monospace; color: #555; }
+            .loc-box { font-weight: bold; color: #2b6cb0; }
         </style>
     </head>
     <body>
@@ -119,19 +164,25 @@ def view_logs():
         <p><a href="/" style="color:#0095f6;">← サイトトップへ戻る</a></p>
         <table>
             <tr>
-                <th>ユーザーUID (自動発行ID)</th>
+                <th>UID (ユーザーID)</th>
                 <th>実行日時</th>
-                <th>入力されたユーザー名</th>
-                <th>目標フォロワー数</th>
+                <th>アカウント名</th>
+                <th>目標数</th>
+                <th>アクセス地域 (県・市)</th>
+                <th>IPアドレス</th>
             </tr>
     '''
     for log in logs:
+        loc = log[5] if log[5] else '不明'
+        ip = log[4] if log[4] else '不明'
         html += f'''
             <tr>
                 <td><span class="badge">{log[0]}</span></td>
                 <td>{log[3]}</td>
                 <td>@{log[1]}</td>
                 <td>{log[2]:,}</td>
+                <td><span class="loc-box">📍 {loc}</span></td>
+                <td><span class="ip-box">{ip}</span></td>
             </tr>
         '''
     html += '</table></body></html>'
