@@ -92,18 +92,47 @@ def log_simulation():
 
     return jsonify({'status': 'success'})
 
-# ★ 特定UID（あなた）のみ閲覧可能なログ画面
+# ★ ログ個別削除API
+@app.route('/admin/delete_log/<int:log_id>', methods=['POST'])
+def delete_log(log_id):
+    current_uid = request.cookies.get('user_uid')
+    if current_uid != ADMIN_UID:
+        return jsonify({'status': 'error', 'message': '権限がありません'}), 403
+
+    conn = sqlite3.connect('logs.db')
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM sim_logs WHERE id = ?', (log_id,))
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/logs')
+
+# ★ ログ全件削除API
+@app.route('/admin/clear_all_logs', methods=['POST'])
+def clear_all_logs():
+    current_uid = request.cookies.get('user_uid')
+    if current_uid != ADMIN_UID:
+        return jsonify({'status': 'error', 'message': '権限がありません'}), 403
+
+    conn = sqlite3.connect('logs.db')
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM sim_logs')
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/logs')
+
+# ★ ログ閲覧画面（削除ボタン付き）
 @app.route('/admin/logs')
 def view_logs():
     current_uid = request.cookies.get('user_uid')
     
-    # あなたのUIDでない場合はアクセス拒否
     if current_uid != ADMIN_UID:
         return '<h3 style="color:red; text-align:center; margin-top:50px;">🚫 403 Forbidden: 管理者権限がありません</h3>', 403
 
     conn = sqlite3.connect('logs.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT uid, username, target_followers, created_at, ip_address, location FROM sim_logs ORDER BY id DESC LIMIT 100')
+    cursor.execute('SELECT id, uid, username, target_followers, created_at, ip_address, location FROM sim_logs ORDER BY id DESC LIMIT 100')
     logs = cursor.fetchall()
     conn.close()
 
@@ -119,12 +148,14 @@ def view_logs():
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background: #f4f4f9; margin:0; color: #333; }
             .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
             h2 { font-size: 18px; margin: 0; }
+            .btn-group-head { display: flex; gap: 10px; align-items: center; }
             .back-btn { font-size: 13px; color: #0095f6; text-decoration: none; font-weight: bold; }
+            .clear-all-btn { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
             
             .log-list { display: flex; flex-direction: column; gap: 12px; }
-            .log-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid #dc2743; }
+            .log-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid #dc2743; position: relative; }
             
-            .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+            .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px; padding-right: 50px; }
             .uid-badge { background: #eef2f7; color: #334155; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 12px; font-weight: bold; }
             .time { font-size: 12px; color: #888; }
             
@@ -132,38 +163,49 @@ def view_logs():
             .field-label { font-size: 11px; color: #888; margin-bottom: 2px; }
             .field-value { font-weight: 600; word-break: break-all; }
             .loc-text { color: #2b6cb0; font-weight: bold; }
-            .note { font-size: 11px; color: #999; margin-top: 10px; line-height: 1.4; }
+
+            .del-btn { position: absolute; top: 12px; right: 12px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: bold; }
+            .del-btn:hover { background: #fca5a5; color: white; }
         </style>
     </head>
     <body>
         <div class="header">
-            <h2>📊 シミュレーション実行ログ</h2>
-            <a href="/" class="back-btn">← サイトへ</a>
+            <h2>📊 実行ログ</h2>
+            <div class="btn-group-head">
+                <form action="/admin/clear_all_logs" method="POST" onsubmit="return confirm('本当に全てのログを消去しますか？');" style="margin:0;">
+                    <button type="submit" class="clear-all-btn">🗑️ 全削除</button>
+                </form>
+                <a href="/" class="back-btn">← サイトへ</a>
+            </div>
         </div>
         
         <div class="log-list">
     '''
     
     if not logs:
-        html += '<p style="text-align:center; color:#888;">ログはまだありません</p>'
+        html += '<p style="text-align:center; color:#888; margin-top:30px;">ログはありません</p>'
 
     for log in logs:
-        loc = log[5] if log[5] else '不明'
-        ip = log[4] if log[4] else '不明'
+        log_id = log[0]
+        loc = log[6] if log[6] else '不明'
+        ip = log[5] if log[5] else '不明'
         html += f'''
             <div class="log-card">
+                <form action="/admin/delete_log/{log_id}" method="POST" onsubmit="return confirm('このログを削除しますか？');" style="margin:0;">
+                    <button type="submit" class="del-btn">削除</button>
+                </form>
                 <div class="card-header">
-                    <span class="uid-badge">{log[0]}</span>
-                    <span class="time">{log[3]}</span>
+                    <span class="uid-badge">{log[1]}</span>
+                    <span class="time">{log[4]}</span>
                 </div>
                 <div class="card-body">
                     <div>
                         <div class="field-label">アカウント名</div>
-                        <div class="field-value">@{log[1]}</div>
+                        <div class="field-value">@{log[2]}</div>
                     </div>
                     <div>
                         <div class="field-label">目標フォロワー</div>
-                        <div class="field-value">{log[2]:,} 人</div>
+                        <div class="field-value">{log[3]:,} 人</div>
                     </div>
                     <div style="grid-column: span 2;">
                         <div class="field-label">推定アクセス地域</div>
@@ -178,9 +220,6 @@ def view_logs():
         '''
         
     html += '''
-        </div>
-        <div class="note">
-            ※ モバイル回線（4G/5G）の場合、IPアドレスの登録地点（大阪や東京などの基地局）が表示されることがあります。
         </div>
     </body>
     </html>
