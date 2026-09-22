@@ -35,6 +35,9 @@
             color: white;
             padding: 20px;
             text-align: center;
+            user-select: none;
+            cursor: pointer;
+            position: relative;
         }
         
         .header h1 {
@@ -47,7 +50,62 @@
             font-size: 12px;
             opacity: 0.9;
         }
+
+        .uid-badge {
+            display: inline-block;
+            background: rgba(0,0,0,0.25);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 8px;
+            letter-spacing: 0.5px;
+        }
         
+        /* 管理者パネルスタイル */
+        .admin-panel {
+            display: none;
+            background: #222;
+            color: #fff;
+            padding: 15px;
+            border-bottom: 2px solid #dc2743;
+            font-size: 12px;
+        }
+
+        .admin-panel h3 {
+            color: #fcb045;
+            font-size: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .admin-btn {
+            background: #444;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 6px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .admin-btn:hover {
+            background: #555;
+        }
+
+        .admin-btn.active {
+            background: #22c55e;
+            border-color: #16a34a;
+        }
+
         .instagram-preview {
             background: #fafafa;
             padding: 20px;
@@ -295,11 +353,23 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <div class="header" id="headerTitle">
             <h1>Instagramフォロワー爆増シミュレーター</h1>
             <p>実際のアカウントに影響を与えないデモンストレーションツール</p>
+            <div class="uid-badge">ID: {{ uid }}</div>
         </div>
         
+        <div class="admin-panel" id="adminPanel">
+            <h3>⚙️ 管理者制御パネル <span style="font-size:10px; cursor:pointer;" onclick="toggleAdminPanel()">✖ 閉じる</span></h3>
+            <div class="admin-grid">
+                <button class="admin-btn" id="btnUnlockLimit" onclick="toggleLimitUnlock()">上限1000制限: 有効</button>
+                <button class="admin-btn" onclick="clearRateLimit()">回数制限クリア</button>
+                <button class="admin-btn" onclick="window.open('/admin/logs', '_blank')">📋 実行ログ閲覧</button>
+                <button class="admin-btn" onclick="resetAllAdmin()">全初期化</button>
+            </div>
+            <div style="font-size:10px; color:#aaa;">※ タイトル5回タップでこのパネルを開閉できます</div>
+        </div>
+
         <div class="instagram-preview">
             <div class="profile-header">
                 <div class="avatar-box" onclick="document.getElementById('fileInput').click()">
@@ -402,6 +472,11 @@
         const notification = document.getElementById('notification');
         const notificationText = document.getElementById('notificationText');
         const progressFill = document.getElementById('progressFill');
+
+        // 管理者関連
+        const headerTitle = document.getElementById('headerTitle');
+        const adminPanel = document.getElementById('adminPanel');
+        const btnUnlockLimit = document.getElementById('btnUnlockLimit');
         
         let currentFollowers = 128;
         let targetFollowers = 1000;
@@ -409,12 +484,74 @@
         let simulationInterval;
         let notificationTimeout;
 
+        let tapCount = 0;
+        let tapTimer = null;
+        let limitUnlocked = false;
+
+        // イベントリスナー
         startBtn.addEventListener('click', startSimulation);
         resetBtn.addEventListener('click', resetSimulation);
         usernameInput.addEventListener('input', updateProfile);
         initialFollowersInput.addEventListener('input', updateStats);
         initialFollowingInput.addEventListener('input', updateStats);
         
+        // ヘッダー5回タップで管理者パネル呼び出し
+        headerTitle.addEventListener('click', () => {
+            tapCount++;
+            if (tapTimer) clearTimeout(tapTimer);
+            tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
+
+            if (tapCount >= 5) {
+                toggleAdminPanel();
+                tapCount = 0;
+            }
+        });
+
+        // ショートカットキー (Ctrl + Shift + A)
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+                toggleAdminPanel();
+            }
+        });
+
+        function toggleAdminPanel() {
+            if (adminPanel.style.display === 'block') {
+                adminPanel.style.display = 'none';
+            } else {
+                adminPanel.style.display = 'block';
+                showNotification('⚙️ 管理者モードを起動しました');
+            }
+        }
+
+        function toggleLimitUnlock() {
+            limitUnlocked = !limitUnlocked;
+            if (limitUnlocked) {
+                btnUnlockLimit.innerText = '上限1000制限: 解除済み';
+                btnUnlockLimit.classList.add('active');
+                targetFollowersInput.placeholder = '制限なし';
+                showNotification('管理者権限: 目標数の1000制限を解除しました');
+            } else {
+                btnUnlockLimit.innerText = '上限1000制限: 有効';
+                btnUnlockLimit.classList.remove('active');
+                targetFollowersInput.placeholder = '上限1000まで';
+                showNotification('目標数の1000制限を有効化しました');
+            }
+        }
+
+        function clearRateLimit() {
+            localStorage.removeItem('sim_history');
+            showNotification('管理者権限: 1時間あたりの実行回数制限をリセットしました');
+        }
+
+        function resetAllAdmin() {
+            clearRateLimit();
+            limitUnlocked = false;
+            btnUnlockLimit.innerText = '上限1000制限: 有効';
+            btnUnlockLimit.classList.remove('active');
+            resetSimulation();
+            showNotification('管理者設定を初期化しました');
+        }
+
         function updateProfile() {
             const val = usernameInput.value.trim().replace('@', '');
             profileName.textContent = val ? '@' + val : '@demo_user';
@@ -445,11 +582,9 @@
             }
         }
 
-        // 1時間に3回までの実行制限チェック
         function checkRateLimit() {
             const now = Date.now();
             const history = JSON.parse(localStorage.getItem('sim_history') || '[]');
-            // 1時間（3600,000ミリ秒）以内の実行履歴を抽出
             const recent = history.filter(time => now - time < 3600000);
             
             if (recent.length >= 3) {
@@ -459,14 +594,27 @@
             localStorage.setItem('sim_history', JSON.stringify(recent));
             return true;
         }
+
+        // ★ サーバー側へログ送信する関数
+        function sendLogToServer(targetValue, inputUsername) {
+            fetch('/api/log_simulation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: inputUsername,
+                    target: targetValue
+                })
+            }).catch(err => console.error('Log save error:', err));
+        }
         
         function startSimulation() {
             if (isSimulationRunning) return;
 
             targetFollowers = parseInt(targetFollowersInput.value) || 0;
 
-            // 数値が高すぎる場合のチェック（1000上限）
-            if (targetFollowers > 1000) {
+            if (!limitUnlocked && targetFollowers > 1000) {
                 showNotification('数値が高すぎます（目標は1,000までに設定してください）');
                 return;
             }
@@ -476,11 +624,13 @@
                 return;
             }
 
-            // 回数制限チェック
             if (!checkRateLimit()) {
                 showNotification('エラー: 1時間に利用できるのは3回までです。時間を置いてお試しください。');
                 return;
             }
+
+            // ★ 実行ログを送信
+            sendLogToServer(targetFollowers, usernameInput.value);
 
             isSimulationRunning = true;
             startBtn.textContent = '実行中...';
@@ -491,7 +641,7 @@
             showNotification('フォロワー増加シミュレーションを開始しました！');
             
             const speed = 11 - parseInt(growthSpeedInput.value);
-            const interval = speed * 25; // 1ずつ増やすためテンポを調整
+            const interval = speed * 25;
             const startAmount = currentFollowers;
             
             simulationInterval = setInterval(() => {
@@ -503,7 +653,6 @@
                     return;
                 }
                 
-                // 1の位から順番に＋1〜＋3ずつ細かく増やす
                 const increment = Math.floor(Math.random() * 3) + 1;
                 currentFollowers = Math.min(currentFollowers + increment, targetFollowers);
                 
@@ -543,7 +692,6 @@
             }, 3500);
         }
 
-        // 初期表示
         updateProfile();
         updateStats();
     </script>
