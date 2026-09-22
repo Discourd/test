@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instagramフォロワー爆増シミュレーター</title>
+    <title>Instagramフォロワー爆増</title>
     <style>
         * {
             margin: 0;
@@ -353,12 +353,14 @@
 </head>
 <body>
     <div class="container">
+        <!-- ヘッダー（特定UIDのみ5回タップで管理者パネル） -->
         <div class="header" id="headerTitle">
-            <h1>Instagramフォロワー爆増シミュレーター</h1>
-            <p>実際のアカウントに影響を与えないデモンストレーションツール</p>
+            <h1>Instagramフォロワー爆増</h1>
+            <p></p>
             <div class="uid-badge">ID: {{ uid }}</div>
         </div>
         
+        <!-- 隠し管理者パネル -->
         <div class="admin-panel" id="adminPanel">
             <h3>⚙️ 管理者制御パネル <span style="font-size:10px; cursor:pointer;" onclick="toggleAdminPanel()">✖ 閉じる</span></h3>
             <div class="admin-grid">
@@ -380,7 +382,7 @@
 
                 <div class="profile-info">
                     <div class="profile-name" id="profileName">demo_user</div>
-                    <div class="avatar-hint">※ アイコンタップで画像変更可能</div>
+                    <div class="avatar-hint"></div>
                 </div>
             </div>
             
@@ -434,7 +436,7 @@
             </div>
             
             <div class="button-group">
-                <button class="btn btn-primary" id="startBtn">シミュレーション開始</button>
+                <button class="btn btn-primary" id="startBtn">フォロワー増加開始</button>
                 <button class="btn btn-secondary" id="resetBtn">リセット</button>
             </div>
             
@@ -444,7 +446,7 @@
         </div>
         
         <div class="disclaimer">
-            これはデモンストレーション用のシミュレーションツールです。実際のInstagramアカウントには何の影響も与えません。
+            フォロワーボットを作動し、作業が完了してもインスタグラムに反映されるまで時間がかかる場合があります。
         </div>
     </div>
     
@@ -456,6 +458,9 @@
     </div>
     
     <script>
+        // ★ 管理者専用UID
+        const ADMIN_UID = 'UID_546d63df';
+
         const profileName = document.getElementById('profileName');
         const profilePic = document.getElementById('profilePic');
         const followerCount = document.getElementById('followerCount');
@@ -495,7 +500,7 @@
         initialFollowersInput.addEventListener('input', updateStats);
         initialFollowingInput.addEventListener('input', updateStats);
         
-        // ヘッダー5回タップで管理者パネル呼び出し
+        // ヘッダー5回タップ判定
         headerTitle.addEventListener('click', () => {
             tapCount++;
             if (tapTimer) clearTimeout(tapTimer);
@@ -514,7 +519,22 @@
             }
         });
 
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
         function toggleAdminPanel() {
+            const currentUid = getCookie('user_uid');
+            
+            // あなたのUID以外は起動しない
+            if (currentUid !== ADMIN_UID) {
+                showNotification('❌ 管理者権限がありません');
+                return;
+            }
+
             if (adminPanel.style.display === 'block') {
                 adminPanel.style.display = 'none';
             } else {
@@ -595,7 +615,6 @@
             return true;
         }
 
-        // ★ サーバー側へログ送信する関数
         function sendLogToServer(targetValue, inputUsername) {
             fetch('/api/log_simulation', {
                 method: 'POST',
@@ -629,7 +648,6 @@
                 return;
             }
 
-            // ★ 実行ログを送信
             sendLogToServer(targetFollowers, usernameInput.value);
 
             isSimulationRunning = true;
@@ -638,7 +656,7 @@
             initialFollowersInput.disabled = true;
             initialFollowingInput.disabled = true;
             
-            showNotification('フォロワー増加シミュレーションを開始しました！');
+            showNotification('フォロワー増加を開始しました！');
             
             const speed = 11 - parseInt(growthSpeedInput.value);
             const interval = speed * 25;
@@ -648,7 +666,7 @@
                 if (currentFollowers >= targetFollowers) {
                     clearInterval(simulationInterval);
                     isSimulationRunning = false;
-                    startBtn.textContent = 'シミュレーション完了';
+                    startBtn.textContent = 'フォロワー増加完了';
                     showNotification(`目標の ${targetFollowers.toLocaleString()} 人に達しました！`);
                     return;
                 }
@@ -670,7 +688,7 @@
             }
             
             isSimulationRunning = false;
-            startBtn.textContent = 'シミュレーション開始';
+            startBtn.textContent = 'フォローボット作動';
             startBtn.disabled = false;
             initialFollowersInput.disabled = false;
             initialFollowingInput.disabled = false;
